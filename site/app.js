@@ -1,4 +1,4 @@
-const DATA_URL = new URL("./data/commute_map_data.json", import.meta.url).toString();
+const DATA_URL = new URL("./data/commute_map_data.json?v=rer-c-stitch", import.meta.url).toString();
 const MIN_VIEWPORT_SCALE = 0.22;
 const MAX_VIEWPORT_SCALE = 3.6;
 const VIEWPORT_ZOOM_STEP = 1.32;

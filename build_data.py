@@ -33,7 +33,7 @@ INTER_COMPLEX_WALK_RADIUS = 400.0
 LINE_GAP_METERS = 4500.0
 MIN_RING_DISTANCE = 90.0
 MIN_LINE_DISTANCE = 55.0
-SEGMENT_SNAP_METERS = 420.0
+SEGMENT_SNAP_METERS = 550.0
 MIN_RIDE_MINUTES = 0.65
 
 Point = Tuple[float, float]
@@ -480,31 +480,36 @@ def connect_line_gaps(stations: Sequence[dict], edges: Dict[Tuple[int, int, str]
         return seen
 
     for line_id, indexes in by_line.items():
-        remaining = set(indexes)
-        while remaining:
-            start = remaining.pop()
-            comp = component(line_id, start)
-            remaining -= comp
-            if len(comp) == len(indexes):
+        while True:
+            remaining = set(indexes)
+            components: List[set] = []
+            while remaining:
+                start = remaining.pop()
+                comp = component(line_id, start)
+                remaining -= comp
+                components.append(comp)
+            if len(components) <= 1:
                 break
             best = None
-            for i in comp:
-                pi = stations[i]["line_points"].get(line_id, stations[i]["point"])
-                for j in remaining:
-                    pj = stations[j]["line_points"].get(line_id, stations[j]["point"])
-                    dist = math.hypot(pi[0] - pj[0], pi[1] - pj[1])
-                    if dist > LINE_GAP_METERS:
-                        continue
-                    if best is None or dist < best[0]:
-                        best = (dist, i, j)
+            for first, comp_a in enumerate(components):
+                for comp_b in components[first + 1 :]:
+                    for i in comp_a:
+                        pi = stations[i]["line_points"].get(line_id, stations[i]["point"])
+                        for j in comp_b:
+                            pj = stations[j]["line_points"].get(line_id, stations[j]["point"])
+                            dist = math.hypot(pi[0] - pj[0], pi[1] - pj[1])
+                            if dist > LINE_GAP_METERS:
+                                continue
+                            if best is None or dist < best[0]:
+                                best = (dist, i, j)
             if best is None:
-                continue
+                break
             dist, i, j = best
             key = (min(i, j), max(i, j), line_id)
-            edges[key] = max(MIN_RIDE_MINUTES, dist / ride_speed(line_id))
+            if key not in edges or dist / ride_speed(line_id) < edges[key]:
+                edges[key] = max(MIN_RIDE_MINUTES, dist / ride_speed(line_id))
             connected[line_id][i].add(j)
             connected[line_id][j].add(i)
-            remaining.add(j)
 
 
 def build_graph(stations: Sequence[dict], edges: Dict[Tuple[int, int, str], float]):
